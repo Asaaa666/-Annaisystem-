@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';//アプリを動かす使うUseStateやUseEffectなどのフックを導入
 import { normalizeCategoryValue, getUnifiedLocationGroup, matchesSearchQuery } from './searchUtils';
 
-// ⚠️ STEP 2で取得したGASのWebアプリURLをここに貼り付けてください
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxlzRVKr1rJEnXOH2dn6LRkzKi6VqsFT-JhxA3hosmoI2Y0OsdQDFVC3tdLv1Ybhz1p9A/exec";//読み込むスプレットシートを選択するコード
+const DEFAULT_GAS_API_URL = "https://script.google.com/macros/s/AKfycbxlzRVKr1rJEnXOH2dn6LRkzKi6VqsFT-JhxA3hosmoI2Y0OsdQDFVC3tdLv1Ybhz1p9A/exec";
+const GAS_API_URL = import.meta.env.VITE_GAS_API_URL || DEFAULT_GAS_API_URL;
+const FESTIVAL_YEAR = Number(import.meta.env.VITE_FESTIVAL_YEAR) || 2027;
 
 interface Group {//団体の情報を格納するためのインターフェース
   name: string;//団体名
@@ -401,10 +402,8 @@ function LogoImage({ originalLogo, groupName, alt, className, fallbackClassName 
 export default function App() {//アプリを動かすためのコード
   const [groups, setGroups] = useState<Group[]>([]);//setGroupsとは、グループの情報を格納するためのステート変数です。初期値は空の配列です。
   const [coords, setCoords] = useState<Coordinate[]>([]);//setCoordsとは、座標の情報を格納するためのステート変数です。初期値は空の配列です。
-  const [loading, setLoading] = useState(true);//データの読み込み中かどうかを示すステート変数です。
   const [listFocusedGroupName, setListFocusedGroupName] = useState<string | null>(null);
   const [refreshResult, setRefreshResult] = useState<{ type: 'changed' | 'unchanged' | 'error'; count?: number } | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');//setSearchTermとは、検索キーワードを格納するためのステート変数です。初期値は空文字です。ステート変数とは、Reactコンポーネント内で状態を管理するための変数です。useStateフックを使って定義されます。useStateフックとは、Reactで状態を管理するためのフックです。useStateフックを使うことで、コンポーネント内で状態を持つことができます。useStateフックは、初期値を引数に取り、現在の状態と状態を更新するための関数を返します。
   
@@ -432,7 +431,7 @@ export default function App() {//アプリを動かすためのコード
   const guideDetailRef = useRef<HTMLDivElement>(null);//詳細ガイドセクションにスクロールするための参照
   const shouldScrollGuideDetailRef = useRef(false);//詳細ガイドを開いた直後だけ自動スクロールするためのフラグ
   const fetchInFlightRef = useRef(false);//重複したデータ取得を防ぐためのフラグ
-  const DATA_CACHE_KEY = 'festival-data-cache-v1';// データキャッシュのキー名
+  const DATA_CACHE_KEY = `festival-data-cache-v1-${FESTIVAL_YEAR}`;//年度が変わったときに前年のデータを表示しない
 
   const restoreCachedData = (): { savedAt: number; groups: Group[]; coords: Coordinate[] } | null => {//キャッシュされたデータを復元する関数。localStorageからデータを取得し、JSON.parseでオブジェクトに変換する。データが存在しない場合や、形式が不正な場合はnullを返す。
     try {
@@ -586,7 +585,6 @@ export default function App() {//アプリを動かすためのコード
     fetchInFlightRef.current = true;//データ取得中フラグを立てる
     setLoadError(false);
     if (showRefreshResult) {
-      setIsRefreshing(true);
       setRefreshResult(null);
     }
 
@@ -597,9 +595,6 @@ export default function App() {//アプリを動かすためのコード
       if (cached) {//キャッシュされたデータが存在する場合は、キャッシュされたデータを使って画面表示用のステートを更新する。
         setGroups(cached.groups);//キャッシュされたデータのグループ情報をステートに設定する
         setCoords(cached.coords);//キャッシュされたデータの座標情報をステートに設定する
-        setLoading(false);//キャッシュされたデータを使って画面表示用のステートを更新した後は、ローディング状態をfalseに設定する。これで最新のデータが取得されるまでの間、キャッシュされたデータを表示することができる。
-      } else {
-        setLoading(true);//キャッシュされたデータが存在しない場合は、ローディング状態をtrueに設定する。これで最新のデータが取得されるまでの間、ローディング表示をすることができる。
       }
 
       let res: Response | undefined;
@@ -709,9 +704,7 @@ export default function App() {//アプリを動かすためのコード
       setLoadError(true);
       if (showRefreshResult) setRefreshResult({ type: 'error' });
     } finally {
-      setLoading(false);
       fetchInFlightRef.current = false;
-      if (showRefreshResult) setIsRefreshing(false);
     }
   };
 
@@ -831,7 +824,7 @@ export default function App() {//アプリを動かすためのコード
             </div>
             <div className="min-w-0">
               <h1 translate="no" className="font-black text-base sm:text-lg tracking-tight bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent leading-tight notranslate">打越祭リアルタイム混雑サイト</h1>
-              <p className="text-[10px] font-semibold text-slate-500 -mt-0.5 notranslate">打越祭をもっと快適に</p>
+              <p className="text-[10px] font-semibold text-slate-500 -mt-0.5 notranslate">{FESTIVAL_YEAR}年度 | 打越祭をもっと快適に</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -876,6 +869,30 @@ export default function App() {//アプリを動かすためのコード
       )}
 
       <main className="max-w-6xl mx-auto px-4 mt-6 space-y-6 relative z-10">
+        <section className="rounded-2xl border-2 border-sky-200 bg-white p-5 shadow-[0_10px_30px_rgba(14,116,144,0.08)]" aria-labelledby="first-use-heading">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-wider text-sky-600">{FESTIVAL_YEAR}年度版</p>
+              <h2 id="first-use-heading" className="mt-1 text-lg font-black text-slate-900">はじめての方は、まずここから</h2>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">行きたい展示や企画を探して、場所と混雑状況を確認できます。会場に着いたら、表示を見ながら空いているところを選べます。</p>
+            </div>
+            <button
+              onClick={() => {
+                shouldScrollGuideDetailRef.current = true;
+                setShowGuide(true);
+              }}
+              className="shrink-0 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-sky-700 active:scale-95"
+            >
+              詳しい使い方を見る
+            </button>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-xl bg-sky-50 px-3 py-2.5 text-xs text-slate-700"><span className="font-black text-sky-700">1. 探す</span><br />検索欄に団体名や企画名を入力</div>
+            <div className="rounded-xl bg-emerald-50 px-3 py-2.5 text-xs text-slate-700"><span className="font-black text-emerald-700">2. 選ぶ</span><br />一覧のカードかマップのピンをタップ</div>
+            <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-slate-700"><span className="font-black text-amber-700">3. 確認する</span><br />場所と混雑度を見て向かう</div>
+          </div>
+        </section>
+
         {loadError && groups.length === 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center shadow-sm">
             <p className="text-sm font-bold text-amber-900">団体情報を読み込めませんでした</p>
